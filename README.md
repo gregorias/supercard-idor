@@ -10,6 +10,7 @@ limit to this browsing is how much traffic supercard.ch can handle.
 
 ```
 $ pipenv shell
+$ pipenv install --dev
 $ python -m main
 ```
 
