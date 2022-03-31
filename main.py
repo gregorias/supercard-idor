@@ -9,9 +9,9 @@ import threading
 import time
 
 
-def fetch_receipt(url) -> bytes:
+def fetch_receipt(session, url) -> bytes:
     """Fetches a PDF receipt from the URL."""
-    response = requests.get(url)
+    response = session.get(url)
     if not response.ok:
         raise Exception("The statement fetch request has failed. " +
                         f"Response reason: {response.reason}.")
@@ -38,12 +38,12 @@ def create_url(barcode: str) -> str:
     return f'https://www.supercard.ch/bin/coop/kbk/kassenzettelpoc?barcode={barcode}&pdfType=receipt'
 
 
-def fetch_from_barcode(barcode: str) -> bytes | None:
+def fetch_from_barcode(session, barcode: str) -> bytes | None:
     RETRY_COUNT = 10
     for i in range(
             RETRY_COUNT):  # Retry a few times to avoid intermittent errors
         try:
-            r = fetch_receipt(create_url(barcode))
+            r = fetch_receipt(session, create_url(barcode))
         except:
             if i == RETRY_COUNT - 1:
                 raise
@@ -66,7 +66,7 @@ def generate_barcodes() -> queue.Queue:
     barcodes = queue.Queue()
     cost = D('0.05')
     while cost < D('200.00'):
-        barcodes.put(create_barcode(6, 1746, date(2022, 3, 24), cost, '1827'))
+        barcodes.put(create_barcode(6, 1744, date(2022, 3, 24), cost, '1827'))
         cost += D('0.05')
     return barcodes
 
@@ -80,6 +80,7 @@ def main():
 
     barcodes = generate_barcodes()
     receipts = queue.Queue()
+    session = requests.Session()
     def run():
         while True:
             try:
@@ -91,7 +92,7 @@ def main():
                 return None
 
             print(f"Trying to fetch {barcode}")
-            r = fetch_from_barcode(barcode)
+            r = fetch_from_barcode(session, barcode)
             if r is not None:
                 receipts.put(r)
                 return None
@@ -103,6 +104,7 @@ def main():
         t.start()
     for t in threads:
         t.join()
+    session.close()
 
     if receipts.empty():
         print("Could not find a valid receipt.")
